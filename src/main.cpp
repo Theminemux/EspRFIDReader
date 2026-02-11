@@ -16,20 +16,20 @@ MFRC522 mfrc522(SDA_PIN, RST_PIN);
 void printHex(const uint8_t *buffer, size_t len) {
   for (size_t i = 0; i < len; ++i) {
     if (buffer[i] < 0x10) Serial.print('0');
-    Serial.print(buffer[i], HEX);
-    if (i + 1 < len) Serial.print(' ');
+    //Serial.print(buffer[i], HEX);
+    if (i + 1 < len); //Serial.print(' ');
   }
 }
 
 void printCardInfo() {
-  Serial.println("--- Tag detected ---");
-  Serial.print("UID: ");
+  //Serial.println("--- Tag detected ---");
+  //Serial.print("UID: ");
   printHex(mfrc522.uid.uidByte, mfrc522.uid.size);
-  Serial.println();
-  Serial.print("UID size: "); Serial.println(mfrc522.uid.size);
-  Serial.print("SAK: 0x"); Serial.println(mfrc522.uid.sak, HEX);
+  //Serial.println();
+  //Serial.print("UID size: "); Serial.println(mfrc522.uid.size);
+  //Serial.print("SAK: 0x"); Serial.println(mfrc522.uid.sak, HEX);
   MFRC522::PICC_Type piccType = mfrc522.PICC_GetType(mfrc522.uid.sak);
-  Serial.print("PICC Type: "); Serial.println(mfrc522.PICC_GetTypeName(piccType));
+  //Serial.print("PICC Type: "); Serial.println(mfrc522.PICC_GetTypeName(piccType));
 }
 
 String GetCardData(){
@@ -84,7 +84,7 @@ void setup() {
   delay(100);
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SDA_PIN);
   mfrc522.PCD_Init();
-  Serial.println("MFRC522 initialized");
+  //Serial.println("MFRC522 initialized");
 }
 
 void loop() {
@@ -93,19 +93,19 @@ void loop() {
     printCardInfo();
     String cardData = GetCardData();
     if (cardData.length() > 0) {
-      Serial.print("Card Data: ");
-      Serial.println(cardData);
+      //Serial.print("Card Data: ");
+      //Serial.println(cardData);
       if (cardData != lastCardData) {
-        Serial.println("New card detected with different data!");
+        //Serial.println("New card detected with different data!");
 
         NewCardDetected(cardData);
 
         lastCardData = cardData;
       } else {
-        Serial.println("Same card detected again.");
+        //Serial.println("Same card detected again.");
       }
     } else {
-      Serial.println("No data read from card.");
+      //Serial.println("No data read from card.");
     }
     delay(100); // Wait 100 milliseconds before next read
   }
