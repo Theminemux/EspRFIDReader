@@ -3,28 +3,28 @@
 #include <MFRC522.h>
 
 // Pins
-#define RST_PIN 18
-#define SDA_PIN 15
-#define SCK_PIN 2
-#define MOSI_PIN 4
-#define MISO_PIN 5
+#define RST_PIN 19
+#define SDA_PIN 16
+#define SCK_PIN 17
+#define MOSI_PIN 5
+#define MISO_PIN 18
 
 String lastCardData = ""; 
 
 MFRC522 mfrc522(SDA_PIN, RST_PIN);
 
-void printHex(const uint8_t *buffer, size_t len) {
+/*void printHex(const uint8_t *buffer, size_t len) {
   for (size_t i = 0; i < len; ++i) {
-    if (buffer[i] < 0x10) Serial.print('0');
-    //Serial.print(buffer[i], HEX);
-    if (i + 1 < len); //Serial.print(' ');
+    if (buffer[i] < 0x10);
+    Serial.print(buffer[i], HEX);
+    if (i + 1 < len);
   }
-}
+}*/
 
 void printCardInfo() {
   //Serial.println("--- Tag detected ---");
   //Serial.print("UID: ");
-  printHex(mfrc522.uid.uidByte, mfrc522.uid.size);
+  //printHex(mfrc522.uid.uidByte, mfrc522.uid.size);
   //Serial.println();
   //Serial.print("UID size: "); Serial.println(mfrc522.uid.size);
   //Serial.print("SAK: 0x"); Serial.println(mfrc522.uid.sak, HEX);
@@ -74,13 +74,12 @@ String GetCardData(){
 }
 
 void NewCardDetected(String cardData){
-  String json = "{\"rfid_reader\":\"new_card\",\"data\":\"" + cardData + "\"}";
-  Serial.println(json);
+  Serial.println("{\"rfid_reader\":\"new_card\",\"data\":\"" + cardData + "\"}");
   // JSON looks like this: {"rfid_reader":"new_card","data":"CardDataHere"}
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   delay(100);
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SDA_PIN);
   mfrc522.PCD_Init();
