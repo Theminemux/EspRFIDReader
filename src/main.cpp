@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <MFRC522.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
 
 // Pins
 #define RST_PIN 18
@@ -8,6 +10,10 @@
 #define SCK_PIN 2
 #define MOSI_PIN 4
 #define MISO_PIN 5
+
+const char* ssid = "rescuerobotcar";
+const char* password = "mint2025";
+char* carIp = "";
 
 String lastCardData = ""; 
 
@@ -75,8 +81,13 @@ String GetCardData(){
 
 void NewCardDetected(String cardData){
   String json = "{\"rfid_reader\":\"new_card\",\"data\":\"" + cardData + "\"}";
-  Serial.println(json);
   // JSON looks like this: {"rfid_reader":"new_card","data":"CardDataHere"}
+
+  // Send data to car via http request
+  HTTPClient http;
+  http.begin("http://" + String(carIp) + ":");
+  int httpCode = http.POST(json);
+  http.end();
 }
 
 void setup() {
@@ -85,6 +96,39 @@ void setup() {
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SDA_PIN);
   mfrc522.PCD_Init();
   //Serial.println("MFRC522 initialized");
+
+  // login to wifi
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    //Serial.print(".");
+  }
+
+  // Ask server for orangepi ip address
+  HTTPClient http;
+  http.begin("http://5.175.245.160:8300/text");
+  int httpCode = http.GET();
+  if (httpCode <= 0) {
+    ESP.restart();
+  }
+  if (httpCode != HTTP_CODE_OK) {
+    ESP.restart();
+  }
+  char* orangepiIp = strdup(http.getString().c_str());
+  http.end();
+
+  // Ask orangepi for car ip address
+  http.begin("http://" + String(orangepiIp) + "/api/register/?device=rescuecar");
+  httpCode = http.GET();
+  if (httpCode <= 0) {
+    ESP.restart();
+  }
+  if (httpCode != HTTP_CODE_OK) {
+    ESP.restart();
+  }
+  carIp = strdup(http.getString().c_str());
+  http.end();
 }
 
 void loop() {
