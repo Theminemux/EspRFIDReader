@@ -20,15 +20,24 @@
 
 #define RASPBERRY_NEXT_RFID_TAG_SIGNAL_PIN -1 // Muss noch geändert werden.
 
-String ssid = "rescuerobotcar";
-String password = "mint2025";
-String carIp = "";
+const String ssid = "rescuerobotcar";
+const String password = "mint2025";
+const String deviceName = "rescuecar-esp32";
+const String carName = "rescuecar";
+const String serverUrl = "http://5.175.245.160:8300/text";
 
+String carIp = "";
 String lastCardData = ""; 
 
 MFRC522 mfrc522(SDA_PIN, RST_PIN);
 WebServer server(80);
 Servo gateServo;
+
+void handleConnectionCheck() 
+{
+  Serial.println("HTTP: Connection check called");
+  server.send(200);
+}
 
 void handleServoUp()
 {
@@ -146,8 +155,9 @@ void setup() {
   gateServo.attach(SERVO_PIN);        // Servo-Pin
   gateServo.write(0);                 // Startposition: zu
 
-  server.on("/servo_up", HTTP_GET, handleServoUp);
-  server.on("/servo_down", HTTP_GET, handleServoDown);
+  server.on("/servo/servo_up", HTTP_GET, handleServoUp);
+  server.on("/servo/servo_down", HTTP_GET, handleServoDown);
+  server.on("/api/checkconnection", HTTP_GET, handleConnectionCheck);
   server.begin();
   Serial.println("HTTP server started");
 
@@ -157,7 +167,7 @@ void setup() {
   
   // Ask server for orangepi ip address
   HTTPClient http;
-  http.begin("http://5.175.245.160:8300/text");
+  http.begin(serverUrl);
   int httpCode = http.GET();
 
   // Log the HTTP response code and handle errors
@@ -177,8 +187,25 @@ void setup() {
   Serial.println(orangepiIp);
   http.end();
 
+  // Log in to orangepi
+  http.begin("http://" + String(orangepiIp) + "/api/register/?device=" + deviceName);
+  httpCode = http.GET();
+
+  // Log the HTTP response code and handle errors
+  Serial.print("HTTP Response code: ");
+  Serial.println(httpCode);
+
+  if (httpCode <= 0) {
+    Serial.println("Failed to get orangepi IP, restarting...");
+    ESP.restart();
+  }
+  if (httpCode != HTTP_CODE_OK) {
+    Serial.println("Failed to get orangepi IP. body empty, restarting...");
+    ESP.restart();
+  }
+
   // Ask orangepi for car ip address
-  http.begin("http://" + String(orangepiIp) + "/api/getip/?device=rescuecar");
+  http.begin("http://" + String(orangepiIp) + "/api/getip/?device=" + carName);
   httpCode = http.GET();
 
   Serial.print("HTTP Response code: ");
