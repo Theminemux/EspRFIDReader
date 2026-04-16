@@ -31,6 +31,23 @@ String lastCardData = "";
 MFRC522 mfrc522(SDA_PIN, RST_PIN);
 WebServer server(80);
 Servo gateServo;
+// Servo state: true = up, false = down
+bool servoIsUp = false;
+
+// Helper functions to move servo and update state
+void setServoUp()
+{
+  Serial.println("Action: setServoUp()");
+  gateServo.writeMicroseconds(2600); // Tor auf
+  servoIsUp = true;
+}
+
+void setServoDown()
+{
+  Serial.println("Action: setServoDown()");
+  gateServo.write(0); // Tor zu
+  servoIsUp = false;
+}
 
 void handleConnectionCheck() 
 {
@@ -41,15 +58,23 @@ void handleConnectionCheck()
 void handleServoUp()
 {
   Serial.println("HTTP: servo_up called");
-  gateServo.writeMicroseconds(2600); // Tor auf
+  setServoUp();
   server.send(200, "text/plain", "servo_up");
 }
 
 void handleServoDown()
 {
   Serial.println("HTTP: servo_down called");
-  gateServo.write(0); // Tor zu
+  setServoDown();
   server.send(200, "text/plain", "servo_down");
+}
+
+void handleServoStatus()
+{
+  Serial.println("HTTP: servo_status called");
+  // Return "1" when up, "0" when down
+  String resp = servoIsUp ? "1" : "0";
+  server.send(200, "text/plain", resp);
 }
 
 void printCardInfo() {
@@ -225,6 +250,7 @@ void setup() {
 
   server.on("/servo/servo_up", HTTP_GET, handleServoUp);
   server.on("/servo/servo_down", HTTP_GET, handleServoDown);
+  server.on("/servo/status", HTTP_GET, handleServoStatus);
   server.on("/api/checkconnection", HTTP_GET, handleConnectionCheck);
   server.begin();
   Serial.println("[SETUP] HTTP server started");
@@ -332,6 +358,8 @@ void setup() {
   Serial.print("[SETUP] Car IP: ");
   Serial.println(carIp);
   http.end();
+  // After successful registration / connection to OrangePi, move servo up
+  setServoUp();
   //carIp = "192.168.137.25";
 
   Serial.println("[SETUP] Setup complete, waiting for RFID cards...");
