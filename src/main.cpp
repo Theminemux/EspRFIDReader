@@ -25,7 +25,7 @@ const String password = "mint2025";
 const String deviceName = "rescuecar-esp32";
 const String carName = "rescuecar";
 const String serverUrl = "http://5.175.245.160:8300/text";
-const String orangepiIp = "";
+String orangepiIp = "";
 
 String carIp = "";
 String lastCardData = ""; 
@@ -105,6 +105,71 @@ String GetCardData(){
   return data;
 }
 
+bool SendJsonPost(const String& targetName, const String& url, const String& json)
+{
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.print("[HTTP] WiFi not connected, skip send to ");
+    Serial.println(targetName);
+    return false;
+  }
+
+  for (int attempt = 1; attempt <= 2; attempt++) {
+    HTTPClient http;
+    http.setConnectTimeout(3000);
+    http.setTimeout(5000);
+    http.setReuse(false);
+
+    Serial.print("[HTTP] POST ");
+    Serial.print(targetName);
+    Serial.print(" attempt ");
+    Serial.print(attempt);
+    Serial.print(" -> ");
+    Serial.println(url);
+
+    if (!http.begin(url)) {
+      Serial.print("[HTTP] begin() failed for ");
+      Serial.println(targetName);
+      return false;
+    }
+
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("Connection", "close");
+
+    int httpCode = http.POST(json);
+    if (httpCode == HTTP_CODE_OK) {
+      Serial.print("Data sent to ");
+      Serial.print(targetName);
+      Serial.println(" successfully");
+      http.end();
+      return true;
+    }
+
+    if (httpCode <= 0) {
+      Serial.print("Failed to send data to ");
+      Serial.print(targetName);
+      Serial.print(", HTTP code: ");
+      Serial.println(httpCode);
+      Serial.print("[HTTP] Transport error: ");
+      Serial.println(http.errorToString(httpCode));
+    } else {
+      Serial.print("Failed to send data to ");
+      Serial.print(targetName);
+      Serial.print(", HTTP status: ");
+      Serial.println(httpCode);
+      String responseBody = http.getString();
+      if (responseBody.length() > 0) {
+        Serial.print("[HTTP] Response body: ");
+        Serial.println(responseBody);
+      }
+    }
+
+    http.end();
+    delay(150);
+  }
+
+  return false;
+}
+
 void NewCardDetected(String cardData)
 {
   String json = "{\"rfid_reader\":\"new_card\",\"data\":\"" + cardData + "\"}";
@@ -112,43 +177,23 @@ void NewCardDetected(String cardData)
 
   Serial.println("New card detected with data: " + cardData);
 
-  HTTPClient http;
-  http.begin("http://" + String(carIp) + ":5000/sensors/rfidupdate");
-
-  http.addHeader("Content-Type", "application/json");   // WICHTIG für ASP.NET
-
-  int httpCode = http.POST(json);
-
-  if (httpCode == HTTP_CODE_OK)
-  {
-    Serial.println("Data sent to car successfully");
-  }
-  else
-  {
-    Serial.print("Failed to send data to car, HTTP code: ");
-    Serial.println(httpCode);
+  if (carIp.length() > 0) {
+    String carUrl = "http://" + carIp + ":5000/sensors/rfidupdate";
+    SendJsonPost("car", carUrl, json);
+  } else {
+    Serial.println("[HTTP] carIp is empty, skip send to car");
   }
 
-  http.end();
-  
-  HTTPClient http;
-  http.begin("http://" + String(orangepiIp) + "/api/rfidscan");
-
-  http.addHeader("Content-Type", "application/json");   // WICHTIG für ASP.NET
-
-  int httpCode = http.POST(json);
-
-  if (httpCode == HTTP_CODE_OK)
-  {
-    Serial.println("Data sent to car successfully");
+  if (orangepiIp.length() > 0) {
+    String orangepiBase = orangepiIp;
+    if (!orangepiBase.startsWith("http://") && !orangepiBase.startsWith("https://")) {
+      orangepiBase = "http://" + orangepiBase;
+    }
+    String orangepiUrl = orangepiBase + "/api/rfidscan";
+    SendJsonPost("orangepi", "http://" + orangepiIp + "/api/rfidscan", json);
+  } else {
+    Serial.println("[HTTP] orangepiIp is empty, skip send to orangepi");
   }
-  else
-  {
-    Serial.print("Failed to send data to car, HTTP code: ");
-    Serial.println(httpCode);
-  }
-
-  http.end();
 }
 
 void setup() {
@@ -217,7 +262,7 @@ void setup() {
     http.end();
     ESP.restart();
   }
-  String orangepiIp = orangepiResponse;
+  orangepiIp = orangepiResponse;
   orangepiIp.trim();
   if (orangepiIp.length() == 0) {
     Serial.println("[HTTP] OrangePi IP is empty after trim, restarting...");
