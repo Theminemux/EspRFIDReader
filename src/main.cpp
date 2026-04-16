@@ -134,11 +134,14 @@ void NewCardDetected(String cardData)
 void setup() {
   Serial.begin(9600);
   delay(100);
+  Serial.println("[SETUP] Booting ESP32...");
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SDA_PIN);
   mfrc522.PCD_Init();
-  Serial.println("MFRC522 initialized");
+  Serial.println("[SETUP] MFRC522 initialized");
 
   // login to wifi
+  Serial.print("[WIFI] Connecting to SSID: ");
+  Serial.println(ssid);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
@@ -147,7 +150,7 @@ void setup() {
   }
 
   Serial.println("");
-  Serial.print("Connected to WiFi. IP address: ");
+  Serial.print("[WIFI] Connected. IP address: ");
   Serial.println(WiFi.localIP());
 
   // Servo initialisieren
@@ -159,7 +162,7 @@ void setup() {
   server.on("/servo/servo_down", HTTP_GET, handleServoDown);
   server.on("/api/checkconnection", HTTP_GET, handleConnectionCheck);
   server.begin();
-  Serial.println("HTTP server started");
+  Serial.println("[SETUP] HTTP server started");
 
   // Raspberry Frühwarn RFID Pin initialisieren
   pinMode(RASPBERRY_NEXT_RFID_TAG_SIGNAL_PIN, OUTPUT);
@@ -167,71 +170,110 @@ void setup() {
   
   // Ask server for orangepi ip address
   HTTPClient http;
+  Serial.print("[HTTP] Request OrangePi host from: ");
+  Serial.println(serverUrl);
   http.begin(serverUrl);
   int httpCode = http.GET();
 
-  // Log the HTTP response code and handle errors
-  Serial.print("HTTP Response code: ");
+  Serial.print("[HTTP] Response code (orangepi host): ");
   Serial.println(httpCode);
+  String orangepiResponse = "";
+  if (httpCode <= 0) {
+    Serial.print("[HTTP] Transport error: ");
+    Serial.println(http.errorToString(httpCode));
+  } else {
+    orangepiResponse = http.getString();
+    Serial.print("[HTTP] Response body (orangepi host): ");
+    Serial.println(orangepiResponse);
+  }
 
   if (httpCode <= 0) {
-    Serial.println("Failed to get orangepi IP, restarting...");
+    Serial.println("[HTTP] Failed to get orangepi IP, restarting...");
+    http.end();
     ESP.restart();
   }
   if (httpCode != HTTP_CODE_OK) {
-    Serial.println("Failed to get orangepi IP. body empty, restarting...");
+    Serial.println("[HTTP] Failed to get orangepi IP. body empty, restarting...");
+    http.end();
     ESP.restart();
   }
-  char* orangepiIp = strdup(http.getString().c_str());
-  Serial.print("Orangepi IP: ");
+  String orangepiIp = orangepiResponse;
+  orangepiIp.trim();
+  if (orangepiIp.length() == 0) {
+    Serial.println("[HTTP] OrangePi IP is empty after trim, restarting...");
+    http.end();
+    ESP.restart();
+  }
+  Serial.print("[HTTP] Orangepi IP: ");
   Serial.println(orangepiIp);
   http.end();
 
   // Log in to orangepi
-  http.begin("http://" + String(orangepiIp) + "/api/register/?device=" + deviceName);
+  String registerUrl = "http://" + orangepiIp + "/api/register/?device=" + deviceName;
+  Serial.print("[HTTP] Register request: ");
+  Serial.println(registerUrl);
+  http.begin(registerUrl);
   httpCode = http.GET();
 
-  // Log the HTTP response code and handle errors
-  Serial.print("HTTP Response code: ");
+  Serial.print("[HTTP] Response code (register): ");
   Serial.println(httpCode);
+  if (httpCode <= 0) {
+    Serial.print("[HTTP] Register transport error: ");
+    Serial.println(http.errorToString(httpCode));
+  } else {
+    Serial.print("[HTTP] Register response body: ");
+    Serial.println(http.getString());
+  }
 
   if (httpCode <= 0) {
-    Serial.println("Failed to get orangepi IP, restarting...");
+    Serial.println("[HTTP] Registration failed (transport), restarting...");
+    http.end();
     ESP.restart();
   }
   if (httpCode != HTTP_CODE_OK) {
-    Serial.println("Failed to get orangepi IP. body empty, restarting...");
+    Serial.println("[HTTP] Registration failed (status != 200), restarting...");
+    http.end();
     ESP.restart();
   }
+  http.end();
 
   // Ask orangepi for car ip address
-  http.begin("http://" + String(orangepiIp) + "/api/getip/?device=" + carName);
+  String carIpUrl = "http://" + orangepiIp + "/api/getip/?device=" + carName;
+  Serial.print("[HTTP] Request car IP from: ");
+  Serial.println(carIpUrl);
+  http.begin(carIpUrl);
   httpCode = http.GET();
 
-  Serial.print("HTTP Response code: ");
+  Serial.print("[HTTP] Response code (car IP): ");
   Serial.println(httpCode);
+  if (httpCode <= 0) {
+    Serial.print("[HTTP] Car IP transport error: ");
+    Serial.println(http.errorToString(httpCode));
+  }
 
   if (httpCode <= 0) {
-    Serial.println("Failed to get car IP from orangepi, restarting...");
+    Serial.println("[HTTP] Failed to get car IP from orangepi, restarting...");
+    http.end();
     ESP.restart();
   }
   if (httpCode != HTTP_CODE_OK) {
-    Serial.println("Failed to get car IP from orangepi. body empty, restarting...");
+    Serial.println("[HTTP] Failed to get car IP from orangepi. body empty, restarting...");
+    http.end();
     ESP.restart();
   }
   String carResponse = http.getString();
-  Serial.print("Car response: ");
+  Serial.print("[HTTP] Car response: ");
   Serial.println(carResponse);
 
   carResponse.trim();
-  carIp = strdup(carResponse.c_str());
+  carIp = carResponse;
 
-  Serial.print("Car IP: ");
+  Serial.print("[SETUP] Car IP: ");
   Serial.println(carIp);
   http.end();
   //carIp = "192.168.137.25";
 
-  Serial.println("Setup complete, waiting for RFID cards...");
+  Serial.println("[SETUP] Setup complete, waiting for RFID cards...");
 }
 
 void loop() {
