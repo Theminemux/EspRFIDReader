@@ -25,6 +25,7 @@ const String password = "mint2025";
 const String deviceName = "rescuecar-esp32";
 const String carName = "rescuecar";
 const String serverUrl = "http://5.175.245.160:8300/text";
+const String orangepiIp = "";
 
 String carIp = "";
 String lastCardData = ""; 
@@ -113,6 +114,25 @@ void NewCardDetected(String cardData)
 
   HTTPClient http;
   http.begin("http://" + String(carIp) + ":5000/sensors/rfidupdate");
+
+  http.addHeader("Content-Type", "application/json");   // WICHTIG für ASP.NET
+
+  int httpCode = http.POST(json);
+
+  if (httpCode == HTTP_CODE_OK)
+  {
+    Serial.println("Data sent to car successfully");
+  }
+  else
+  {
+    Serial.print("Failed to send data to car, HTTP code: ");
+    Serial.println(httpCode);
+  }
+
+  http.end();
+  
+  HTTPClient http;
+  http.begin("http://" + String(orangepiIp) + "/api/rfidscan");
 
   http.addHeader("Content-Type", "application/json");   // WICHTIG für ASP.NET
 
