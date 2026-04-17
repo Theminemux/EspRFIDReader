@@ -38,14 +38,14 @@ bool servoIsUp = false;
 void setServoUp()
 {
   Serial.println("Action: setServoUp()");
-  gateServo.writeMicroseconds(2600); // Tor auf
+  gateServo.write(0); // Tor zu
   servoIsUp = true;
 }
 
 void setServoDown()
 {
   Serial.println("Action: setServoDown()");
-  gateServo.write(0); // Tor zu
+  gateServo.writeMicroseconds(2600); // Tor auf
   servoIsUp = false;
 }
 
