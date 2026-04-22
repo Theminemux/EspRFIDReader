@@ -22,8 +22,7 @@ const String ssid = "rescuerobotcar";
 const String password = "mint2025";
 const String deviceName = "rescuecar-esp32";
 const String carName = "rescuecar";
-const String serverUrl = "http://5.175.245.160:8300/text";
-String orangepiIp = "";
+const String orangepiIp = "http://192.168.10.10";
 
 String carIp = "";
 String lastCardData = ""; 
@@ -195,7 +194,12 @@ bool SendJsonPost(const String& targetName, const String& url, const String& jso
 
 void NewCardDetected(String cardData)
 {
-  String json = "{\"rfid_reader\":\"new_card\",\"data\":\"" + cardData + "\"}";
+  String json;
+  if (cardData.startsWith("OBJ")) {
+    json = "{\"tag_type\":0,\"data\":\"" + cardData + "\"}";
+  } else {
+    json = "{\"tag_type\":1,\"data\":\"" + cardData + "\"}";
+  }
   // JSON: {"rfid_reader":"new_card","data":"CardDataHere"}
 
   Serial.println("New card detected with data: " + cardData);
@@ -209,16 +213,7 @@ void NewCardDetected(String cardData)
     Serial.println("[HTTP] carIp is empty, skip send to car");
   }
 
-  if (orangepiIp.length() > 0) {
-    String orangepiBase = orangepiIp;
-    if (!orangepiBase.startsWith("http://") && !orangepiBase.startsWith("https://")) {
-      orangepiBase = "http://" + orangepiBase;
-    }
-    String orangepiUrl = orangepiBase + "/api/rfidscan";
-    SendJsonPost("orangepi", "http://" + orangepiIp + "/api/rfidscan", json);
-  } else {
-    Serial.println("[HTTP] orangepiIp is empty, skip send to orangepi");
-  }
+  SendJsonPost("orangepi", orangepiIp + "/api/rfidscan", json);
 }
 
 void setup() {
@@ -255,52 +250,13 @@ void setup() {
   server.begin();
   Serial.println("[SETUP] HTTP server started");
 
-  // Ask server for orangepi ip address
-  HTTPClient http;
-  Serial.print("[HTTP] Request OrangePi host from: ");
-  Serial.println(serverUrl);
-  http.begin(serverUrl);
-  int httpCode = http.GET();
-
-  Serial.print("[HTTP] Response code (orangepi host): ");
-  Serial.println(httpCode);
-  String orangepiResponse = "";
-  if (httpCode <= 0) {
-    Serial.print("[HTTP] Transport error: ");
-    Serial.println(http.errorToString(httpCode));
-  } else {
-    orangepiResponse = http.getString();
-    Serial.print("[HTTP] Response body (orangepi host): ");
-    Serial.println(orangepiResponse);
-  }
-
-  if (httpCode <= 0) {
-    Serial.println("[HTTP] Failed to get orangepi IP, restarting...");
-    http.end();
-    ESP.restart();
-  }
-  if (httpCode != HTTP_CODE_OK) {
-    Serial.println("[HTTP] Failed to get orangepi IP. body empty, restarting...");
-    http.end();
-    ESP.restart();
-  }
-  orangepiIp = orangepiResponse;
-  orangepiIp.trim();
-  if (orangepiIp.length() == 0) {
-    Serial.println("[HTTP] OrangePi IP is empty after trim, restarting...");
-    http.end();
-    ESP.restart();
-  }
-  Serial.print("[HTTP] Orangepi IP: ");
-  Serial.println(orangepiIp);
-  http.end();
-
   // Log in to orangepi
-  String registerUrl = "http://" + orangepiIp + "/api/register/?device=" + deviceName;
+  HTTPClient http;
+  String registerUrl = orangepiIp + "/api/register/?device=" + deviceName;
   Serial.print("[HTTP] Register request: ");
   Serial.println(registerUrl);
   http.begin(registerUrl);
-  httpCode = http.GET();
+  int httpCode = http.GET();
 
   Serial.print("[HTTP] Response code (register): ");
   Serial.println(httpCode);
