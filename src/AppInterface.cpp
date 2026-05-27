@@ -1,11 +1,6 @@
 #include <Arduino.h>
 #include "AppInterface.h"
 
-AppInterface::AppInterface(WebServer& srv, Servo& servo)
-    : server(srv), gateServo(servo)
-{
-}
-
 void AppInterface::initHttpHandlers()
 {
   server.on("/servo/servo_up", HTTP_GET, std::bind(&AppInterface::handleServoUp, this));
@@ -24,23 +19,21 @@ void AppInterface::handleClients()
 void AppInterface::handleServoUp()
 {
   Serial.println("HTTP: servo_up called");
-  gateServo.write(0);
-  isServoUp = true;
+  gateServo.MoveUp();
   server.send(200, "text/plain", "servo_up");
 }
 
 void AppInterface::handleServoDown()
 {
   Serial.println("HTTP: servo_down called");
-  gateServo.writeMicroseconds(2600);
-  isServoUp = false;
+  gateServo.MoveDown();
   server.send(200, "text/plain", "servo_down");
 }
 
 void AppInterface::handleServoStatus()
 {
   Serial.println("HTTP: servo_status called");
-  String status = isServoUp ? "1" : "0";
+  String status = gateServo.IsUp() ? "1" : "0";
   server.send(200, "text/plain", status);
 }
 

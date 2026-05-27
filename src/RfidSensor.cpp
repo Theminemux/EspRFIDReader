@@ -1,10 +1,5 @@
 #include "RfidSensor.h"
 
-RfidSensor::RfidSensor() 
-{
-    mfrc522 = MFRC522(SDA_PIN, RST_PIN);
-}
-
 void RfidSensor::begin()
 {
     SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, SDA_PIN);
@@ -13,23 +8,38 @@ void RfidSensor::begin()
 
 void RfidSensor::triggerLoop()
 {
-    // Look for new cards
-    if ( !mfrc522.PICC_IsNewCardPresent()) {
-        return;
-    }
+  // Look for new cards
+  if (!mfrc522.PICC_IsNewCardPresent()) {
+      return;
+  }
 
-    // Select one of the cards
-    if ( !mfrc522.PICC_ReadCardSerial()) {
-        return;
-    }
+  // Select one of the cards
+  if (!mfrc522.PICC_ReadCardSerial()) {
+      return;
+  }
 
-    String rawData = "";
-    for (byte i = 0; i < mfrc522.uid.size; i++) {
-        rawData += String(mfrc522.uid.uidByte[i], HEX);
-    }
-    rawData.toUpperCase();
+  String rawData = "";
+  for (byte i = 0; i < mfrc522.uid.size; i++) {
+      rawData += String(mfrc522.uid.uidByte[i], HEX);
+  }
+  rawData.toUpperCase();
 
-    NewCardDetected(rawData);
+  String json;
+  if (rawData.startsWith("OBJ")) {
+    json = "{\"tag_type\":0,\"data\":\"" + rawData + "\"}";
+  } else {
+    json = "{\"tag_type\":1,\"data\":\"" + rawData + "\"}";
+  }
+  Serial.println("New card detected with data: " + rawData);
+
+  String carIp = connectionManager.GetIp(carName);
+  if (carIp.length() > 0) {
+    String carUrl = "http://" + carIp + "/sensors/rfidupdate";
+    httpRequests.SendJsonPost("car", carUrl, json);
+  } else {
+    Serial.println("[HTTP] carIp is empty, skip send to car");
+  }
+  httpRequests.SendJsonPost("orangepi", orangepiIp + "/api/rfidscan", json);
 }
 
 void RfidSensor::printCardInfo() {
@@ -40,30 +50,6 @@ void RfidSensor::printCardInfo() {
   Serial.print("SAK: 0x"); Serial.println(mfrc522.uid.sak, HEX);
   MFRC522::PICC_Type piccType = mfrc522.PICC_GetType(mfrc522.uid.sak);
   Serial.print("PICC Type: "); Serial.println(mfrc522.PICC_GetTypeName(piccType));
-}
-
-void NewCardDetected(String cardData)
-{
-  String json;
-  if (cardData.startsWith("OBJ")) {
-    json = "{\"tag_type\":0,\"data\":\"" + cardData + "\"}";
-  } else {
-    json = "{\"tag_type\":1,\"data\":\"" + cardData + "\"}";
-  }
-  // JSON: {"rfid_reader":"new_card","data":"CardDataHere"}
-
-  Serial.println("New card detected with data: " + cardData);
-
-  //SendJsonPost("macbook", "http://192.168.137.252:8005/api/rfidscan", json);
-
-  if (carIp.length() > 0) {
-    String carUrl = "http://" + carIp + "/sensors/rfidupdate";
-    SendJsonPost("car", carUrl, json);
-  } else {
-    Serial.println("[HTTP] carIp is empty, skip send to car");
-  }
-
-  SendJsonPost("orangepi", orangepiIp + "/api/rfidscan", json);
 }
 
 String RfidSensor::GetCardData(){

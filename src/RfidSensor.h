@@ -8,13 +8,17 @@
 #define MISO_PIN 18
 
 #include <MFRC522.h>
+#include "ConnectionManager.h"
+#include "HttpRequests.h"
 
 class RfidSensor
 {
 private:
-    MFRC522 mfrc522;
+    MFRC522& mfrc522;
+    ConnectionManager& connectionManager;
+    HttpRequests httpRequests;
 public:
-    RfidSensor();
+    RfidSensor(MFRC522& mfrc522, ConnectionManager& connectionManager) : mfrc522(mfrc522), connectionManager(connectionManager) {};
 
     void begin();
     void triggerLoop();

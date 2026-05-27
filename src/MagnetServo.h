@@ -8,10 +8,10 @@
 class MagnetServo 
 {
 private:
-    Servo servo;
+    Servo& servo;
     bool isUp = true;
 public:
-    MagnetServo(Servo servo) : servo(servo) {}
+    MagnetServo(Servo& servo) : servo(servo) {};
 
     void begin();
     void MoveUp();

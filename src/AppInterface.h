@@ -1,15 +1,15 @@
 #pragma once
 #include <WebServer.h>
 #include <ESP32Servo.h>
+#include "MagnetServo.h"
 
 class AppInterface
 {
 private:
     WebServer& server;
-    Servo& gateServo;
-    bool isServoUp = true;
+    MagnetServo& gateServo;
 public: 
-    AppInterface(WebServer& srv, Servo& servo);
+    AppInterface(WebServer& server, MagnetServo& gateServo) : server(server), gateServo(gateServo) {};
 
     void handleServoUp();
     void handleServoDown();
