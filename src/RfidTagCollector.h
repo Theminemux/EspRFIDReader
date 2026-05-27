@@ -3,11 +3,12 @@
 #include <vector>
 #include "RfidTags.h"
 
-class RfidTagCollector
+class RfidObjectCollector
 {
 private:
-    std::vector<RfidTag> tags; // Collection of RFID tags
+    std::vector<RfidTagObject> tags; // Collection of RFID tags
 public:
-    RfidTagCollector();
-    void addTag(const RfidTag& tag);
+    RfidObjectCollector();
+    void addTag(const RfidTagObject& tag);
+    String getAllTagsAsJson() const;
 };

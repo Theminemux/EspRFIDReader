@@ -31,7 +31,7 @@ MFRC522 mfrc522(SDA_PIN, RST_PIN);
 WebServer server(80);
 Servo gateServo;
 AppInterface api(server, gateServo);
-RfidTagCollector tagCollector;
+RfidObjectCollector tagCollector;
 
 void printCardInfo() {
   Serial.println("--- Tag detected ---");
