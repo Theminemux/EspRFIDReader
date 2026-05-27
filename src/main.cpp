@@ -3,10 +3,9 @@
 #include <MFRC522.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
-
 #include <WebServer.h>
-
 #include <ESP32Servo.h>
+#include "AppInterface.h"
 
 // Pins
 #define RST_PIN 19
@@ -30,51 +29,7 @@ String lastCardData = "";
 MFRC522 mfrc522(SDA_PIN, RST_PIN);
 WebServer server(80);
 Servo gateServo;
-// Servo state: true = up, false = down
-bool servoIsUp = false;
-
-// Helper functions to move servo and update state
-void setServoUp()
-{
-  Serial.println("Action: setServoUp()");
-  gateServo.write(0); // Tor zu
-  servoIsUp = true;
-}
-
-void setServoDown()
-{
-  Serial.println("Action: setServoDown()");
-  gateServo.writeMicroseconds(2600); // Tor auf
-  servoIsUp = false;
-}
-
-void handleConnectionCheck() 
-{
-  Serial.println("HTTP: Connection check called");
-  server.send(200);
-}
-
-void handleServoUp()
-{
-  Serial.println("HTTP: servo_up called");
-  setServoUp();
-  server.send(200, "text/plain", "servo_up");
-}
-
-void handleServoDown()
-{
-  Serial.println("HTTP: servo_down called");
-  setServoDown();
-  server.send(200, "text/plain", "servo_down");
-}
-
-void handleServoStatus()
-{
-  Serial.println("HTTP: servo_status called");
-  // Return "1" when up, "0" when down
-  String resp = servoIsUp ? "1" : "0";
-  server.send(200, "text/plain", resp);
-}
+AppInterface api(server, gateServo);
 
 void printCardInfo() {
   Serial.println("--- Tag detected ---");
@@ -243,11 +198,7 @@ void setup() {
   gateServo.attach(SERVO_PIN);        // Servo-Pin
   gateServo.write(0);                 // Startposition: zu
 
-  server.on("/servo/servo_up", HTTP_GET, handleServoUp);
-  server.on("/servo/servo_down", HTTP_GET, handleServoDown);
-  server.on("/servo/status", HTTP_GET, handleServoStatus);
-  server.on("/api/checkconnection", HTTP_GET, handleConnectionCheck);
-  server.begin();
+  api.initHttpHandlers();
   Serial.println("[SETUP] HTTP server started");
 
   // Log in to orangepi
@@ -315,14 +266,13 @@ void setup() {
   Serial.println(carIp);
   http.end();
   // After successful registration / connection to OrangePi, move servo up
-  setServoUp();
-  //carIp = "192.168.137.25";
+  gateServo.write(0);
 
   Serial.println("[SETUP] Setup complete, waiting for RFID cards...");
 }
 
 void loop() {
-  server.handleClient();
+  api.handleClients();
   // Read RFID cards continuously
   if (mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
     printCardInfo();
