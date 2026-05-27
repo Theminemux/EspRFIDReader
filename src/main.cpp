@@ -6,6 +6,7 @@
 #include <WebServer.h>
 #include <ESP32Servo.h>
 #include "AppInterface.h"
+#include "RfidTagCollector.h"
 
 // Pins
 #define RST_PIN 19
@@ -30,6 +31,7 @@ MFRC522 mfrc522(SDA_PIN, RST_PIN);
 WebServer server(80);
 Servo gateServo;
 AppInterface api(server, gateServo);
+RfidTagCollector tagCollector;
 
 void printCardInfo() {
   Serial.println("--- Tag detected ---");
